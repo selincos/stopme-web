@@ -17,7 +17,7 @@ html, body {
     inset: 0;
 }
 
-#loading, #unsupported {
+#loading, #unsupported, #failed {
     position: fixed;
     inset: 0;
     display: flex;

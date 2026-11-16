@@ -15,6 +15,8 @@
     <link rel="icon" type="image/png" href="icon-192.png">
     <link rel="manifest" href="manifest.webmanifest">
     <link type="text/css" rel="stylesheet" href="styles.css">
+    <!-- styles.css yüklenemese bile ekran beyaz kalmasın -->
+    <style>html,body{background:#16131F;color:#F3EFF7;margin:0;font-family:system-ui,-apple-system,sans-serif}</style>
 </head>
 <body>
     <div id="loading">STOP ME yükleniyor…</div>
@@ -22,21 +24,39 @@
         Bu tarayıcı STOP ME'yi çalıştıramıyor.<br>
         iPhone'da en az iOS 18.2 gerekiyor. Lütfen telefonunu güncelle.
     </div>
+    <div id="failed" hidden>
+        STOP ME açılamadı 😕<br>
+        Bu ekranın görüntüsünü Selin'e gönderir misin?<br><br>
+        <small id="failedInfo" style="opacity:.7;word-break:break-word"></small>
+    </div>
     <div id="composeTarget"></div>
     <script>
+        // Bir şey ters giderse beyaz/boş ekran yerine sebebini göster
+        let started = false;
+        function showFailure(reason) {
+            if (started) return;
+            document.getElementById("loading").hidden = true;
+            document.getElementById("failed").hidden = false;
+            document.getElementById("failedInfo").textContent = reason + " | " + navigator.userAgent;
+        }
+        window.addEventListener("error", e => showFailure(String(e.message || e.target?.src || "error")), true);
+        window.addEventListener("unhandledrejection", e => showFailure(String(e.reason)));
+        setTimeout(() => showFailure("zaman aşımı (30 sn)"), 30000);
         // WebAssembly GC desteği yoksa (eski iOS) kullanıcıya açıklama göster
         (async () => {
             const gcProbe = new Uint8Array([0,97,115,109,1,0,0,0,1,5,1,95,1,120,0]);
             if (!(typeof WebAssembly === "object" && WebAssembly.validate(gcProbe))) {
                 document.getElementById("loading").hidden = true;
                 document.getElementById("unsupported").hidden = false;
+                started = true;
                 return;
             }
             const s = document.createElement("script");
-            s.src = "webApp.js?v=20261116211238";
+            s.src = "webApp.js?v=20261116212441";
             document.body.appendChild(s);
             new MutationObserver((_, obs) => {
                 if (document.querySelector("#composeTarget canvas, canvas")) {
+                    started = true;
                     document.getElementById("loading").hidden = true;
                     obs.disconnect();
                 }

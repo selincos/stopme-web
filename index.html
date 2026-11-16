@@ -31,6 +31,49 @@
     </div>
     <div id="composeTarget"></div>
     <script>
+        // Nefes egzersizi sesi (Kotlin tarafı window.stopmeAudio'yu çağırır).
+        // iPhone Safari sesi ancak bir dokunuşla açtığı için AudioContext ilk dokunuşta oluşturulur.
+        window.stopmeAudio = (() => {
+            let ctx = null, gain = null, src = null, muted = false, gen = 0;
+            const cache = {};
+            function ensure() {
+                const C = window.AudioContext || window.webkitAudioContext;
+                if (!C) return null;
+                if (!ctx) { ctx = new C(); gain = ctx.createGain(); gain.connect(ctx.destination); }
+                if (ctx.state === "suspended") ctx.resume();
+                return ctx;
+            }
+            ["touchend", "pointerdown", "keydown"].forEach(e =>
+                window.addEventListener(e, ensure, { capture: true, passive: true }));
+            function stopSource() {
+                if (src) { try { src.stop(); } catch (e) {} src = null; }
+            }
+            return {
+                start: async (path, isMuted) => {
+                    const my = ++gen;
+                    const url = new URL(path, document.baseURI).href;
+                    muted = isMuted;
+                    try {
+                        const c = ensure();
+                        if (!c) return;
+                        cache[url] = cache[url] || fetch(url).then(r => r.arrayBuffer())
+                            .then(b => new Promise((ok, fail) => c.decodeAudioData(b, ok, fail)));
+                        const buffer = await cache[url];
+                        if (my !== gen) return;
+                        stopSource();
+                        src = c.createBufferSource();
+                        src.buffer = buffer;
+                        src.connect(gain);
+                        gain.gain.value = muted ? 0 : 1;
+                        src.start();
+                    } catch (e) { console.warn("ses çalınamadı", e); }
+                },
+                stop: () => { gen++; stopSource(); },
+                setMuted: m => { muted = m; if (gain) gain.gain.value = m ? 0 : 1; },
+            };
+        })();
+    </script>
+    <script>
         // Bir şey ters giderse beyaz/boş ekran yerine sebebini göster
         let started = false;
         function showFailure(reason) {
@@ -52,7 +95,7 @@
                 return;
             }
             const s = document.createElement("script");
-            s.src = "webApp.js?v=20261117003501";
+            s.src = "webApp.js?v=20261117005951";
             document.body.appendChild(s);
             new MutationObserver((_, obs) => {
                 if (document.querySelector("#composeTarget canvas, canvas")) {

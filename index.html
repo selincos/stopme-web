@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <title>STOP ME</title>
+    <meta name="theme-color" content="#16131F">
+    <!-- iPhone'da "Ana Ekrana Ekle" ile tam ekran uygulama gibi açılması için -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="STOP ME">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link type="text/css" rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="loading">STOP ME yükleniyor…</div>
+    <div id="unsupported" hidden>
+        Bu tarayıcı STOP ME'yi çalıştıramıyor.<br>
+        iPhone'da en az iOS 18.2 gerekiyor. Lütfen telefonunu güncelle.
+    </div>
+    <div id="composeTarget"></div>
+    <script>
+        // WebAssembly GC desteği yoksa (eski iOS) kullanıcıya açıklama göster
+        (async () => {
+            const gcProbe = new Uint8Array([0,97,115,109,1,0,0,0,1,5,1,95,1,120,0]);
+            if (!(typeof WebAssembly === "object" && WebAssembly.validate(gcProbe))) {
+                document.getElementById("loading").hidden = true;
+                document.getElementById("unsupported").hidden = false;
+                return;
+            }
+            const s = document.createElement("script");
+            s.src = "webApp.js";
+            document.body.appendChild(s);
+            new MutationObserver((_, obs) => {
+                if (document.querySelector("#composeTarget canvas, canvas")) {
+                    document.getElementById("loading").hidden = true;
+                    obs.disconnect();
+                }
+            }).observe(document.body, { childList: true, subtree: true });
+        })();
+    </script>
+</body>
+</html>

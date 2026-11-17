@@ -31,6 +31,40 @@
     </div>
     <div id="composeTarget"></div>
     <script>
+        // Teşhis paneli: adrese ?debug=1 eklenince ekranın üstünde dokunuşları, boyutları ve hataları gösterir.
+        if (new URLSearchParams(location.search).has("debug")) {
+            const box = document.createElement("pre");
+            box.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:99;margin:0;padding:6px 8px;" +
+                "font:11px/1.35 ui-monospace,monospace;color:#0f0;background:rgba(0,0,0,.75);" +
+                "pointer-events:none;white-space:pre-wrap;word-break:break-all;max-height:45vh;overflow:hidden";
+            document.addEventListener("DOMContentLoaded", () => document.body.appendChild(box));
+            const errors = [];
+            let last = "-";
+            const render = () => {
+                const c = document.querySelector("canvas");
+                const vv = window.visualViewport;
+                box.textContent = [
+                    navigator.userAgent,
+                    `window ${innerWidth}x${innerHeight} dpr ${devicePixelRatio}` +
+                        (vv ? ` | visual ${Math.round(vv.width)}x${Math.round(vv.height)} @${Math.round(vv.offsetTop)}` : ""),
+                    c ? `canvas css ${Math.round(c.getBoundingClientRect().width)}x${Math.round(c.getBoundingClientRect().height)}` +
+                        ` px ${c.width}x${c.height}` : "canvas yok",
+                    `son olay: ${last}`,
+                    ...errors.slice(-6),
+                ].join("\n");
+            };
+            ["pointerdown", "pointerup", "touchstart", "touchend", "click"].forEach(t =>
+                window.addEventListener(t, e => {
+                    const p = e.touches?.[0] || e.changedTouches?.[0] || e;
+                    last = `${t} ${Math.round(p.clientX)},${Math.round(p.clientY)}`;
+                    render();
+                }, { capture: true, passive: true }));
+            window.addEventListener("error", e => { errors.push("HATA: " + (e.message || e.target?.src)); render(); }, true);
+            window.addEventListener("unhandledrejection", e => { errors.push("HATA (promise): " + e.reason); render(); });
+            setInterval(render, 1000);
+        }
+    </script>
+    <script>
         // Nefes egzersizi sesi (Kotlin tarafı window.stopmeAudio'yu çağırır).
         // iPhone Safari sesi ancak bir dokunuşla açtığı için AudioContext ilk dokunuşta oluşturulur.
         window.stopmeAudio = (() => {
@@ -95,7 +129,7 @@
                 return;
             }
             const s = document.createElement("script");
-            s.src = "webApp.js?v=20261117005951";
+            s.src = "webApp.js?v=20261117010827";
             document.body.appendChild(s);
             new MutationObserver((_, obs) => {
                 if (document.querySelector("#composeTarget canvas, canvas")) {

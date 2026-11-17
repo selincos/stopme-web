@@ -30,6 +30,12 @@
         <small id="failedInfo" style="opacity:.7;word-break:break-word"></small>
     </div>
     <div id="composeTarget"></div>
+    <div id="graphics" hidden>
+        <div>
+            <p id="graphicsText"></p>
+            <button onclick="location.reload()" id="graphicsButton"></button>
+        </div>
+    </div>
     <script>
         // Teşhis paneli: adrese ?debug=1 eklenince ekranın üstünde dokunuşları, boyutları ve hataları gösterir.
         if (new URLSearchParams(location.search).has("debug")) {
@@ -40,6 +46,10 @@
             document.addEventListener("DOMContentLoaded", () => document.body.appendChild(box));
             const errors = [];
             let last = "-";
+            const glTest = (() => {
+                const t = v => { try { const g = document.createElement("canvas").getContext(v); g?.getExtension("WEBGL_lose_context")?.loseContext(); return g ? "var" : "YOK"; } catch (e) { return "HATA"; } };
+                return `WebGL2: ${t("webgl2")} | WebGL1: ${t("webgl")}`;
+            })();
             const render = () => {
                 const c = document.getElementById("composeTarget").firstElementChild;
                 const vv = window.visualViewport;
@@ -49,6 +59,7 @@
                         (vv ? ` | visual ${Math.round(vv.width)}x${Math.round(vv.height)} @${Math.round(vv.offsetTop)}` : ""),
                     c ? `uygulama alanı ${Math.round(c.getBoundingClientRect().width)}x${Math.round(c.getBoundingClientRect().height)}` +
                         ` | başladı: ${started}` : "uygulama alanı yok",
+                    glTest,
                     `son olay: ${last}`,
                     ...errors.slice(-6),
                 ].join("\n");
@@ -116,7 +127,23 @@
             document.getElementById("failed").hidden = false;
             document.getElementById("failedInfo").textContent = reason + " | " + navigator.userAgent;
         }
-        window.addEventListener("error", e => showFailure(String(e.message || e.target?.src || "error")), true);
+        // Grafik motoru (WebGL) başlatılamazsa uygulama boş/beyaz ekranda kalır; bunun yerine ne yapılacağını anlat.
+        // Genelde çok fazla açık sekme yüzünden olur: iPhone aynı anda açık WebGL bağlamı sayısını sınırlıyor.
+        function showGraphicsError() {
+            const tr = (navigator.language || "").toLowerCase().startsWith("tr");
+            document.getElementById("graphicsText").textContent = tr
+                ? "STOP ME'nin grafikleri bu tarayıcıda başlatılamadı. Genelde çok sayıda açık sekme yüzünden olur. Diğer sekmeleri kapatıp sayfayı yenile ya da linki Safari'de aç."
+                : "STOP ME couldn't start its graphics in this browser. This usually happens when too many tabs are open. Close some tabs and reload, or open the link in Safari.";
+            document.getElementById("graphicsButton").textContent = tr ? "Sayfayı yenile" : "Reload";
+            document.getElementById("loading").hidden = true;
+            document.getElementById("failed").hidden = true;
+            document.getElementById("graphics").hidden = false;
+        }
+        const isGraphicsError = msg => /wrap nullptr|webgl/i.test(msg || "");
+        window.addEventListener("error", e => {
+            const msg = String(e.message || e.target?.src || "error");
+            if (isGraphicsError(msg)) showGraphicsError(); else showFailure(msg);
+        }, true);
         window.addEventListener("unhandledrejection", e => showFailure(String(e.reason)));
         setTimeout(() => showFailure("zaman aşımı (30 sn)"), 30000);
         // WebAssembly GC desteği yoksa (eski iOS) kullanıcıya açıklama göster
@@ -128,8 +155,18 @@
                 started = true;
                 return;
             }
+            // WebGL hiç yoksa uygulamayı yüklemeye çalışmadan açıklamayı göster
+            const hasGL = (() => {
+                try {
+                    const c = document.createElement("canvas");
+                    const g = c.getContext("webgl2") || c.getContext("webgl");
+                    g?.getExtension("WEBGL_lose_context")?.loseContext(); // test bağlamını hemen bırak, uygulamaya yer kalsın
+                    return !!g;
+                } catch (e) { return false; }
+            })();
+            if (!hasGL) { started = true; showGraphicsError(); return; }
             const s = document.createElement("script");
-            s.src = "webApp.js?v=20261117183020";
+            s.src = "webApp.js?v=20261117183901";
             document.body.appendChild(s);
             // Compose, çizim alanını #composeTarget içine (kapalı bir shadow DOM'a) ekler;
             // canvas'ı göremeyiz, o yüzden "bir şey eklendi mi" diye bakıyoruz.
